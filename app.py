@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from nltk.corpus import twitter_samples
 import logging
 import tweepy 
-import csv
+import os
 import sys
 
 app = Flask(__name__)
