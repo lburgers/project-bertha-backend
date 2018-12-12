@@ -4,21 +4,17 @@ import logging
 import tweepy 
 import csv
 import sys
-import json 
 
 app = Flask(__name__)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
 
 
-with open('keys.json') as f:
-    keys = json.load(f)
-
 #Twitter API credentials
-consumer_key = keys['consumer_key']
-consumer_secret = keys['consumer_secret']
-access_key = keys['access_key']
-access_secret = keys['access_secret']
+consumer_key = process.env.consumer_key
+consumer_secret = process.env.consumer_secret
+access_key = process.env.access_key
+access_secret = process.env.access_secret
 
 
 def get_all_tweets(screen_name):
