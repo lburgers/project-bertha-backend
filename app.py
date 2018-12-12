@@ -11,10 +11,10 @@ app.logger.setLevel(logging.ERROR)
 
 
 #Twitter API credentials
-consumer_key = process.env.consumer_key
-consumer_secret = process.env.consumer_secret
-access_key = process.env.access_key
-access_secret = process.env.access_secret
+consumer_key = os.environ['consumer_key']
+consumer_secret = os.environ['consumer_secret']
+access_key = os.environ['access_key']
+access_secret = os.environ['access_secret']
 
 
 def get_all_tweets(screen_name):
