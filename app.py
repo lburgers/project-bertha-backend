@@ -4,6 +4,7 @@ import logging
 import tweepy 
 import os
 import sys
+import json
 
 app = Flask(__name__)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -39,19 +40,16 @@ def get_all_tweets(screen_name):
 	
 	#keep grabbing tweets until there are no tweets left to grab
 	while len(new_tweets) > 0:
-		
 		#all subsiquent requests use the max_id param to prevent duplicates
 		new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
-		
 		#save most recent tweets
 		alltweets.extend(new_tweets)
-		
 		#update the id of the oldest tweet less one
 		oldest = alltweets[-1].id - 1
 		
 	
 	#transform the tweepy tweets into a 2D array that will populate the csv	
-	outtweets = [[tweet.id_str, tweet.created_at, tweet.text.encode("utf-8")] for tweet in alltweets]
+	outtweets = [[tweet.id_str, tweet.created_at.strftime('%m/%d/%Y'), tweet.text.encode("utf-8")] for tweet in alltweets]
 
 	return outtweets
 
@@ -60,8 +58,8 @@ def get_all_tweets(screen_name):
 def add_user():
     username = request.args['username']
     tweets = get_all_tweets(username)
-    return jsonify(tweets)
 
+    return jsonify(tweets)
 
 if __name__ == '__main__':
     app.run(debug=True)
