@@ -60,7 +60,7 @@ def get_all_tweets(screen_name):
 def add_user():
     username = request.args['username']
     tweets = get_all_tweets(username)
-    return "hello world"
+    return jsonify(tweets)
 
 
 if __name__ == '__main__':
