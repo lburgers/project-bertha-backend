@@ -4,7 +4,6 @@ import logging
 import tweepy 
 import os
 import sys
-import json
 
 app = Flask(__name__)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -49,7 +48,7 @@ def get_all_tweets(screen_name):
 		
 	
 	#transform the tweepy tweets into a 2D array that will populate the csv	
-	outtweets = [[tweet.id_str, tweet.created_at.strftime('%m/%d/%Y'), tweet.text.encode("utf-8")] for tweet in alltweets]
+	outtweets = [[tweet.id_str, tweet.created_at.strftime('%m/%d/%Y').encode("utf-8"), tweet.text.encode("utf-8")] for tweet in alltweets]
 
 	return outtweets
 
