@@ -160,9 +160,12 @@ def add_user():
     	new_data['time'] = tweet[1]
     	new_data['text'] = tweet[2]
     	new_data['sentiment'] = prob_result.max()
+        new_data['score'] = prob_result.prob(new_data['sentiment'])
 
-        if new_data['sentiment'] == 'pos': num_pos += 1
-        else: num_neg += 1
+        if new_data['sentiment'] == 'pos': 
+            num_pos += 1
+        else: 
+            num_neg += 1
 
         if prob_result.prob('pos') - prob_result.prob('neg') > max_pos:
             pos_tweet = new_data
@@ -171,7 +174,7 @@ def add_user():
             neg_tweet = new_data
             max_neg = prob_result.prob('neg') - prob_result.prob('pos')
 
-    	sentiment_tweets.append(new_data)
+        sentiment_tweets.append(new_data)
 
     data['tweets'] = sentiment_tweets
     
