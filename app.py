@@ -140,8 +140,17 @@ def get_all_tweets(screen_name):
 def add_user():
     username = request.args['username']
     tweets = get_all_tweets(username)
-    sentiment_tweets = []
 
+    data = {}
+
+    num_pos = 0
+    num_neg = 0
+    max_pos = 0
+    max_neg = 0
+    pos_tweet = {}
+    neg_tweet = {}
+
+    sentiment_tweets = []
     for tweet in tweets:
     	tweet_words = bag_of_words(tweet[2])
     	prob_result = classifier.prob_classify(tweet_words)
@@ -152,9 +161,27 @@ def add_user():
     	new_data['text'] = tweet[2]
     	new_data['sentiment'] = prob_result.max()
 
+        if new_data['sentiment'] == 'pos': num_pos += 1
+        else: num_neg += 1
+
+        if prob_result.prob('pos') - prob_result.prob('neg') > max_pos:
+            pos_tweet = new_data
+            max_pos = prob_result.prob('pos') - prob_result.prob('neg')
+        elif prob_result.prob('neg') - prob_result.prob('pos') > max_neg:
+            neg_tweet = new_data
+            max_neg = prob_result.prob('neg') - prob_result.prob('pos')
+
     	sentiment_tweets.append(new_data)
 
-    return jsonify(sentiment_tweets)
+    data['tweets'] = sentiment_tweets
+    
+    data['num_pos'] = num_pos
+    data['num_neg'] = num_neg
+
+    data['most_positive'] = pos_tweet
+    data['most_negative'] = neg_tweet
+
+    return jsonify(data)
 
 if __name__ == '__main__':
     app.run(debug=True)
