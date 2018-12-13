@@ -141,28 +141,33 @@ def add_user():
     username = request.args['username']
     tweets = get_all_tweets(username)
 
+    print "TWEETS: ", len(tweets)
+
     data = {}
 
+    time_series = []
+    
     num_pos = 0
     num_neg = 0
     max_pos = 0
     max_neg = 0
+
     pos_tweet = {}
     neg_tweet = {}
 
-    sentiment_tweets = []
+    # sentiment_tweets = []
     for tweet in tweets:
     	tweet_words = bag_of_words(tweet[2])
     	prob_result = classifier.prob_classify(tweet_words)
 
     	new_data = {}
-    	new_data['id'] = tweet[0]
+    	# new_data['id'] = tweet[0]
     	new_data['time'] = tweet[1]
     	new_data['text'] = tweet[2]
-    	new_data['sentiment'] = prob_result.max()
-        new_data['score'] = prob_result.prob(new_data['sentiment'])
+    	# new_data['sentiment'] = prob_result.max()
+     #    new_data['score'] = prob_result.prob(new_data['sentiment'])
 
-        if new_data['sentiment'] == 'pos': 
+        if prob_result.max() == 'pos': 
             num_pos += 1
         else: 
             num_neg += 1
@@ -174,9 +179,17 @@ def add_user():
             neg_tweet = new_data
             max_neg = prob_result.prob('neg') - prob_result.prob('pos')
 
-        sentiment_tweets.append(new_data)
+        # sentiment_tweets.append(new_data)
 
-    data['tweets'] = sentiment_tweets
+        entry = {}
+        entry['time'] = tweet[1]
+        entry['score'] = prob_result.prob('neg') - prob_result.prob('pos')
+        entry['pos'] = prob_result.prob('pos')
+        entry['neg'] = prob_result.prob('neg')
+        time_series.append(entry)
+
+    # data['tweets'] = sentiment_tweets
+    data['time_series'] = time_series
     
     data['num_pos'] = num_pos
     data['num_neg'] = num_neg
