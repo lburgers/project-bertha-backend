@@ -108,7 +108,7 @@ def bag_of_words(tweet):
 # classifier = NaiveBayesClassifier.train(train_set)
  
 
-def get_all_tweets(screen_name):
+def get_all_tweets(screen_name, num_tweets):
 	#Twitter only allows access to a users most recent 3240 tweets with this method
 	
 	#authorize twitter, initialize tweepy
@@ -127,15 +127,16 @@ def get_all_tweets(screen_name):
 	
 	#save the id of the oldest tweet less one
 	oldest = alltweets[-1].id - 1
-	
+	count = 0
 	#keep grabbing tweets until there are no tweets left to grab
-	while len(new_tweets) > 0:
+	while len(new_tweets) > 0 and count <= num_tweets:
 		#all subsiquent requests use the max_id param to prevent duplicates
-		new_tweets = api.user_timeline(screen_name = screen_name,count=200,max_id=oldest)
+		new_tweets = api.user_timeline(screen_name = screen_name,count=100,max_id=oldest)
 		#save most recent tweets
 		alltweets.extend(new_tweets)
 		#update the id of the oldest tweet less one
 		oldest = alltweets[-1].id - 1
+        count += 100
 		
 	
 	#transform the tweepy tweets into a 2D array that will populate the csv	
@@ -147,7 +148,8 @@ def get_all_tweets(screen_name):
 @app.route("/tweet", methods=["GET"])
 def add_user():
     username = request.args['username']
-    tweets = get_all_tweets(username)
+    num_tweets = request.args['num_tweets']
+    tweets = get_all_tweets(username, num_tweets)
 
 
     data = {}
