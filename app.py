@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from flask import Flask, request, jsonify
 from nltk.corpus import twitter_samples, stopwords
 from nltk.tokenize import TweetTokenizer
@@ -11,6 +13,10 @@ import sys
 import re
 import string
 from random import shuffle 
+
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+analyzer = SentimentIntensityAnalyzer()
 
 app = Flask(__name__)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -83,21 +89,21 @@ def bag_of_words(tweet):
     words_dictionary = dict([word, True] for word in words)    
     return words_dictionary
 
-pos_tweets_set = []
-for tweet in pos_tweets:
-    pos_tweets_set.append((bag_of_words(tweet), 'pos'))    
+# pos_tweets_set = []
+# for tweet in pos_tweets:
+#     pos_tweets_set.append((bag_of_words(tweet), 'pos'))    
  
-# negative tweets feature set
-neg_tweets_set = []
-for tweet in neg_tweets:
-    neg_tweets_set.append((bag_of_words(tweet), 'neg'))
+# # negative tweets feature set
+# neg_tweets_set = []
+# for tweet in neg_tweets:
+#     neg_tweets_set.append((bag_of_words(tweet), 'neg'))
 
-shuffle(pos_tweets_set)
-shuffle(neg_tweets_set)
+# shuffle(pos_tweets_set)
+# shuffle(neg_tweets_set)
  
-train_set = pos_tweets_set + neg_tweets_set
+# train_set = pos_tweets_set + neg_tweets_set
 
-classifier = NaiveBayesClassifier.train(train_set)
+# classifier = NaiveBayesClassifier.train(train_set)
  
 
 def get_all_tweets(screen_name):
@@ -141,7 +147,6 @@ def add_user():
     username = request.args['username']
     tweets = get_all_tweets(username)
 
-    print "TWEETS: ", len(tweets)
 
     data = {}
 
@@ -149,6 +154,7 @@ def add_user():
     
     num_pos = 0
     num_neg = 0
+    num_neu = 0
     max_pos = 0
     max_neg = 0
 
@@ -157,35 +163,36 @@ def add_user():
 
     # sentiment_tweets = []
     for tweet in tweets:
-    	tweet_words = bag_of_words(tweet[2])
-    	prob_result = classifier.prob_classify(tweet_words)
+        # tweet_words = bag_of_words(tweet[2])
+        prob_result = analyzer.polarity_scores(tweet[2])
 
-    	new_data = {}
-    	# new_data['id'] = tweet[0]
-    	new_data['time'] = tweet[1]
-    	new_data['text'] = tweet[2]
-    	# new_data['sentiment'] = prob_result.max()
-     #    new_data['score'] = prob_result.prob(new_data['sentiment'])
+        new_data = {}
+        # new_data['id'] = tweet[0]
+        new_data['time'] = tweet[1]
+        new_data['text'] = tweet[2]
 
-        if prob_result.max() == 'pos': 
+        if prob_result['compound'] >= 0.1:
             num_pos += 1
-        else: 
+        elif prob_result['compound'] <= -0.1: 
             num_neg += 1
+        else:
+            num_neu += 1
 
-        if prob_result.prob('pos') - prob_result.prob('neg') > max_pos:
+        if prob_result['compound'] > max_pos:
             pos_tweet = new_data
-            max_pos = prob_result.prob('pos') - prob_result.prob('neg')
-        elif prob_result.prob('neg') - prob_result.prob('pos') > max_neg:
+            max_pos = prob_result['compound']
+        elif prob_result['compound'] < max_neg:
             neg_tweet = new_data
-            max_neg = prob_result.prob('neg') - prob_result.prob('pos')
+            max_neg = prob_result['compound']
 
         # sentiment_tweets.append(new_data)
 
         entry = {}
         entry['time'] = tweet[1]
-        entry['score'] = prob_result.prob('neg') - prob_result.prob('pos')
-        entry['pos'] = prob_result.prob('pos')
-        entry['neg'] = prob_result.prob('neg')
+        entry['score'] = prob_result['compound']
+        entry['pos'] = prob_result['pos']
+        entry['neg'] = prob_result['neg']
+        entry['neu'] = prob_result['neu']
         time_series.append(entry)
 
     # data['tweets'] = sentiment_tweets
@@ -193,6 +200,7 @@ def add_user():
     
     data['num_pos'] = num_pos
     data['num_neg'] = num_neg
+    data['num_neu'] = num_neu
 
     data['most_positive'] = pos_tweet
     data['most_negative'] = neg_tweet
