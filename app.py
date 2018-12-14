@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS, cross_origin
 from nltk.corpus import twitter_samples, stopwords
 from nltk.tokenize import TweetTokenizer
 from nltk.stem import PorterStemmer
@@ -19,6 +20,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 analyzer = SentimentIntensityAnalyzer()
 
 app = Flask(__name__)
+CORS(app)
 app.logger.addHandler(logging.StreamHandler(sys.stdout))
 app.logger.setLevel(logging.ERROR)
 
