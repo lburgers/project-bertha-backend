@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
-from nltk.corpus import twitter_samples, stopwords, opinion_lexicon
+#!/usr/bin/python3
+from nltk.corpus import twitter_samples, stopwords
 from nltk.tokenize import TweetTokenizer
 from nltk.stem import PorterStemmer
 from nltk import classify
 from nltk import NaiveBayesClassifier
-from collections import defaultdict
 import logging
 import tweepy 
 import os
@@ -12,26 +11,43 @@ import sys
 import re
 import string
 from random import shuffle 
+from collections import defaultdict
+
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+# analyzer = SentimentIntensityAnalyzer()
+
+#Twitter API credentials
+consumer_key = 'pf14xpY1B4OS6p5NhVvKRDraQ'
+consumer_secret = 'mMVDAiMsrTfRqcZjDpUjEV6TMh0qOYhZeUOT6UQH6EcQUKvlKl'
+access_key = '634780289-kQIogwhtHfQIhogOfV7meFIJrf2DPGLEhsSlF94m'
+access_secret = 'EitrLcZkkZ1FfgTtroB6ETAbalmg7Iul4lAmcPBkucd9m'
 
 tweet_tokenizer = TweetTokenizer(preserve_case=False, strip_handles=True, reduce_len=True)
 stemmer = PorterStemmer()
 
 stopwords_english = stopwords.words('english')
-pos_tweets = twitter_samples.strings('positive_tweets.json')
-neg_tweets = twitter_samples.strings('negative_tweets.json')
+pos_tweetss = twitter_samples.strings('positive_tweets.json')
+neg_tweetss = twitter_samples.strings('negative_tweets.json')
 
-pos_words = opinion_lexicon.positive()
-neg_words = opinion_lexicon.negative()
+political_words = defaultdict(str)
+sports_words = defaultdict(str)
+technology_words = defaultdict(str)
+art_words = defaultdict(str)
 
-# print pos_words
-words = defaultdict(str)
-for word in pos_words:
-    words[word] = 'pos'
+for line in open('./topics/political.txt'):
+    political_words[line.strip().lower()] = True
 
-for word in neg_words:
-    words[word] = 'neg'
+for line in open('./topics/sports.txt'):
+    sports_words[line.strip().lower()] = True
 
- 
+for line in open('./topics/technology.txt'):
+    technology_words[line.strip().lower()] = True
+
+for line in open('./topics/art.txt'):
+    art_words[line.strip().lower()] = True
+
+
 # Happy Emoticons
 emoticons_happy = set([
     ':-)', ':)', ';)', ':o)', ':]', ':3', ':c)', ':>', '=]', '8)', '=)', ':}',
@@ -75,126 +91,179 @@ def clean_tweets(tweet):
               word not in emoticons and # remove emoticons
                 word not in string.punctuation): # remove punctuation
             stem_word = stemmer.stem(word) # stemming word
-            score = words[stem_word]
-
-            tweets_clean.append((stem_word, score))
+            tweets_clean.append(stem_word)
  
     return tweets_clean
 
 def bag_of_words(tweet):
     words = clean_tweets(tweet)
-    words_dictionary = dict([word, True] for word in words)    
+    words_dictionary = dict([word, True] for word in words)
     return words_dictionary
 
-pos_tweets_set = []
-for tweet in pos_tweets:
-    pos_tweets_set.append((bag_of_words(tweet), 'pos'))    
- 
-# negative tweets feature set
-neg_tweets_set = []
-for tweet in neg_tweets:
-    neg_tweets_set.append((bag_of_words(tweet), 'neg'))
+def classify_topic(tweet):
+    words = clean_tweets(tweet)
 
-# print pos_tweets_set
+    num_political = 0
+    num_sports = 0
+    num_tech = 0
+      
+    for word in words:
+        word = word.lower()
+        # if word == 'tesla':
+        #     print word
 
-shuffle(pos_tweets_set)
-shuffle(neg_tweets_set)
- 
-train_set = pos_tweets_set + neg_tweets_set
+        if (political_words[word]):
+            num_political += 1
 
-# shuffle(pos_words)
-# shuffle(neg_words)
- 
-# train_set = pos_words + neg_words
+        if (sports_words[word]):
+            num_sports += 1
 
-# classifier = NaiveBayesClassifier.train(train_set)
+        if (technology_words[word]):
+            num_tech += 1
 
+    # max_val = max(num_political, num_sports, num_tech)
+    # if max_val == 0:
+    #     return "none"
 
+    # if max_val == num_political:
+    #     return "political"
+    # elif max_val == num_sports:
+    #     return "sports"
+    # elif max_val == num_tech:
+    #     return "num_tech"
 
-test_set = pos_tweets_set[:1000] + neg_tweets_set[:1000]
-train_set = pos_tweets_set[1000:] + neg_tweets_set[1000:]
-
- 
-classifier = NaiveBayesClassifier.train(train_set)
- 
-accuracy = classify.accuracy(classifier, test_set)
-
-print(accuracy) # Output: 0.765
- 
-print (classifier.show_most_informative_features(10))
- 
-def add_user():
-    # username = request.args['username']
-    # tweets = get_all_tweets(username)
-
-    test_tweet = "@hayskeys7 But RWD with electric is really good in snow (assuming all weather or winter tires), as traction control is far more precise"
-    tweet_words = bag_of_words(test_tweet)
-
-    for word in tweet_words: 
-        if word in pos_words: 
-            print "POS:", word
-        elif word in neg_words:
-            print "NEG:", word
-
-
-    prob_result = classifier.prob_classify(tweet_words)
-    print tweet_words, prob_result.prob('pos'), prob_result.prob('neg')
-
-    # data = {}
-
-    # time_series = []
-
-    # num_pos = 0
-    # num_neg = 0
-    # max_pos = 0
-    # max_neg = 0
-
-    # pos_tweet = {}
-    # neg_tweet = {}
-
-    # # sentiment_tweets = []
-    # for tweet in tweets:
-    # 	tweet_words = bag_of_words(tweet[2])
-    # 	prob_result = classifier.prob_classify(tweet_words)
-
-    # 	new_data = {}
-    # 	# new_data['id'] = tweet[0]
-    # 	new_data['time'] = tweet[1]
-    # 	new_data['text'] = tweet[2]
-    # 	# new_data['sentiment'] = prob_result.max()
-    #  #    new_data['score'] = prob_result.prob(new_data['sentiment'])
-
-    #     if prob_result.max() == 'pos': 
-    #         num_pos += 1
-    #     else: 
-    #         num_neg += 1
-
-    #     if prob_result.prob('pos') - prob_result.prob('neg') > max_pos:
-    #         pos_tweet = new_data
-    #         max_pos = prob_result.prob('pos') - prob_result.prob('neg')
-    #     elif prob_result.prob('neg') - prob_result.prob('pos') > max_neg:
-    #         neg_tweet = new_data
-    #         max_neg = prob_result.prob('neg') - prob_result.prob('pos')
-
-    #     # sentiment_tweets.append(new_data)
-
-    #     entry = {}
-    #     entry['time'] = tweet[1]
-    #     entry['score'] = prob_result.prob('neg') - prob_result.prob('pos')
-    #     entry['pos'] = prob_result.prob('pos')
-    #     entry['neg'] = prob_result.prob('neg')
-    #     time_series.append(entry)
-
-    # # data['tweets'] = sentiment_tweets
-    # data['time_series'] = time_series
+def get_all_tweets(screen_name, num_tweets):
+    #Twitter only allows access to a users most recent 3240 tweets with this method
     
-    # data['num_pos'] = num_pos
-    # data['num_neg'] = num_neg
+    #authorize twitter, initialize tweepy
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_key, access_secret)
+    api = tweepy.API(auth)
+    
+    #initialize a list to hold all the tweepy Tweets
+    alltweets = []  
+    
+    #make initial request for most recent tweets (200 is the maximum allowed count)
+    new_tweets = api.user_timeline(screen_name = screen_name,count=200)
+    
+    #save most recent tweets
+    alltweets.extend(new_tweets)
+    
+    #save the id of the oldest tweet less one
+    oldest = alltweets[-1].id - 1
+    count = 0
+    #keep grabbing tweets until there are no tweets left to grab
+    while len(new_tweets) > 0 and count <= int(num_tweets):
+        count += 100
+        #all subsiquent requests use the max_id param to prevent duplicates
+        new_tweets = api.user_timeline(screen_name = screen_name,count=100,max_id=oldest)
+        #save most recent tweets
+        alltweets.extend(new_tweets)
 
-    # data['most_positive'] = pos_tweet
-    # data['most_negative'] = neg_tweet
+        #update the id of the oldest tweet less one
+        oldest = alltweets[-1].id - 1
+        
+    
+    #transform the tweepy tweets into a 2D array that will populate the csv 
+    outtweets = [[tweet.id_str, tweet.created_at.strftime('%m/%d/%Y'), tweet.text] for tweet in alltweets]
 
-    # return jsonify(data)
+    return outtweets
 
-if __name__ == '__main__':
-    add_user()
+
+
+username = "elonmusk"
+num_tweets = 1000
+tweets = get_all_tweets(username, num_tweets)
+
+data = {}
+
+time_series = []
+
+num_pos = 0
+num_neg = 0
+num_neu = 0
+max_pos = 0
+max_neg = 0
+
+num_political = 0
+num_sports = 0
+num_tech = 0
+num_art = 0
+
+pos_tweets = []
+neg_tweets = []
+
+# sentiment_tweets = []
+for tweet in tweets:
+    # tweet_words = bag_of_words(tweet[2])
+    # topic = classify_topic(tweet[2])
+    words = clean_tweets(tweet[2])
+      
+    for word in words:
+        word = word.lower()
+
+        if (political_words[word]):
+            num_political += 1
+
+        if (sports_words[word]):
+            num_sports += 1
+            
+        if (technology_words[word]):
+            num_tech += 1
+
+        if (art_words[word]):
+            num_art += 1
+
+
+    # if topic == "political":
+    #     num_political += 1
+    # elif topic == "sports":
+    #     num_sports += 1
+    # elif topic == "tech":
+    #     num_tech += 1
+
+    # prob_result = analyzer.polarity_scores(tweet[2])
+
+    new_data = {}
+
+    new_data['time'] = tweet[1]
+    new_data['text'] = tweet[2]
+
+    # if prob_result['compound'] >= 0.1:
+    #     pos_tweets.append((tweet, prob_result['compound']))
+    #     num_pos += 1
+    # elif prob_result['compound'] <= -0.1: 
+    #     neg_tweets.append((tweet, prob_result['compound']))
+    #     num_neg += 1
+    # else:
+    #     num_neu += 1
+
+    # if prob_result['compound'] > max_pos:
+    #     max_pos = prob_result['compound']
+    # elif prob_result['compound'] < max_neg:
+    #     max_neg = prob_result['compound']
+
+    # entry = {}
+    # entry['time'] = tweet[1]
+    # entry['score'] = prob_result['compound']
+    # entry['pos'] = prob_result['pos']
+    # entry['neg'] = prob_result['neg']
+    # entry['neu'] = prob_result['neu']
+    # time_series.append(entry)
+
+# data['tweets'] = sentiment_tweets
+data['time_series'] = time_series
+
+data['num_pos'] = num_pos
+data['num_neg'] = num_neg
+data['num_neu'] = num_neu
+
+# pos_tweets = sorted(pos_tweets, key=lambda k: k[1], reverse=True)[:6]
+# pos_tweets, _ = zip(*pos_tweets)
+# neg_tweets = sorted(neg_tweets, key=lambda k: k[1])[:6]
+# neg_tweets, _ = zip(*neg_tweets)
+# data['most_positive'] = pos_tweets
+# data['most_negative'] = neg_tweets
+
+
+print num_political, num_sports, num_tech

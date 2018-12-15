@@ -38,6 +38,23 @@ stopwords_english = stopwords.words('english')
 pos_tweetss = twitter_samples.strings('positive_tweets.json')
 neg_tweetss = twitter_samples.strings('negative_tweets.json')
 
+political_words = defaultdict(str)
+sports_words = defaultdict(str)
+technology_words = defaultdict(str)
+art_words = defaultdict(str)
+
+for line in open('./topics/political.txt'):
+    political_words[line.strip().lower()] = True
+
+for line in open('./topics/sports.txt'):
+    sports_words[line.strip().lower()] = True
+
+for line in open('./topics/technology.txt'):
+    technology_words[line.strip().lower()] = True
+
+for line in open('./topics/art.txt'):
+    art_words[line.strip().lower()] = True
+
  
 # Happy Emoticons
 emoticons_happy = set([
@@ -88,10 +105,35 @@ def clean_tweets(tweet):
 
 def bag_of_words(tweet):
     words = clean_tweets(tweet)
-    words_dictionary = dict([word, True] for word in words)    
+    words_dictionary = dict([word, True] for word in words)
     return words_dictionary
 
- 
+# def classify_topic(tweet):
+#     words = clean_tweets(tweet)
+
+#     num_political = 0
+#     num_sports = 0
+#     num_tech = 0
+      
+#     for word in words:
+#         if (political_words[word]):
+#             num_political += 1
+#         if (sports_words[word]):
+#             num_sports += 1
+#         if (technology_words[word]):
+#             num_tech += 1
+
+#     max_val = max(num_political, num_sports, num_tech)
+#     if max_val == 0:
+#         return "none"
+
+#     if max_val == num_political:
+#         return "political"
+#     elif max_val == num_sports:
+#         return "sports"
+#     elif max_val == num_tech:
+#         return "num_tech"
+
 
 def get_all_tweets(screen_name, num_tweets):
     #Twitter only allows access to a users most recent 3240 tweets with this method
@@ -148,12 +190,34 @@ def add_user():
     max_pos = 0
     max_neg = 0
 
+    num_political = 0
+    num_sports = 0
+    num_tech = 0
+    num_art = 0
+
     pos_tweets = []
     neg_tweets = []
 
     # sentiment_tweets = []
     for tweet in tweets:
         # tweet_words = bag_of_words(tweet[2])
+        words = clean_tweets(tweet[2])
+      
+        for word in words:
+            word = word.lower()
+
+            if (political_words[word]):
+                num_political += 1
+
+            if (sports_words[word]):
+                num_sports += 1
+                
+            if (technology_words[word]):
+                num_tech += 1
+
+            if (art_words[word]):
+                num_art += 1
+
         prob_result = analyzer.polarity_scores(tweet[2])
 
         new_data = {}
@@ -190,10 +254,16 @@ def add_user():
     data['num_neg'] = num_neg
     data['num_neu'] = num_neu
 
+    data['num_tech'] = num_tech
+    data['num_art'] = num_art
+    data['num_political'] = num_political
+    data['num_sports'] = num_sports
+
     pos_tweets = sorted(pos_tweets, key=lambda k: k[1], reverse=True)[:6]
     pos_tweets, _ = zip(*pos_tweets)
     neg_tweets = sorted(neg_tweets, key=lambda k: k[1])[:6]
     neg_tweets, _ = zip(*neg_tweets)
+
     data['most_positive'] = pos_tweets
     data['most_negative'] = neg_tweets
 

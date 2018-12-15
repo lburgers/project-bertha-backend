@@ -325,3 +325,9 @@ google
 facebook
 uber
 lyft
+solar
+tesla
+giga
+energy
+wind
+hydro
