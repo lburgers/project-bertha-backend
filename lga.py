@@ -3,8 +3,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 from nltk.corpus import twitter_samples, stopwords
+from nltk.corpus import wordnet as wn
 from nltk.tokenize import TweetTokenizer
 from nltk.stem import PorterStemmer
+from gensim import corpora
+import gensim
 from nltk import classify
 from nltk import NaiveBayesClassifier
 import logging
@@ -19,24 +22,18 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 analyzer = SentimentIntensityAnalyzer()
 
-app = Flask(__name__)
-CORS(app)
-app.logger.addHandler(logging.StreamHandler(sys.stdout))
-app.logger.setLevel(logging.ERROR)
-
-
 #Twitter API credentials
-consumer_key = os.environ['consumer_key']
-consumer_secret = os.environ['consumer_secret']
-access_key = os.environ['access_key']
-access_secret = os.environ['access_secret']
+consumer_key = 'pf14xpY1B4OS6p5NhVvKRDraQ'
+consumer_secret = 'mMVDAiMsrTfRqcZjDpUjEV6TMh0qOYhZeUOT6UQH6EcQUKvlKl'
+access_key = '634780289-kQIogwhtHfQIhogOfV7meFIJrf2DPGLEhsSlF94m'
+access_secret = 'EitrLcZkkZ1FfgTtroB6ETAbalmg7Iul4lAmcPBkucd9m'
 
 tweet_tokenizer = TweetTokenizer(preserve_case=False, strip_handles=True, reduce_len=True)
 stemmer = PorterStemmer()
 
 stopwords_english = stopwords.words('english')
-pos_tweetss = twitter_samples.strings('positive_tweets.json')
-neg_tweetss = twitter_samples.strings('negative_tweets.json')
+pos_tweets = twitter_samples.strings('positive_tweets.json')
+neg_tweets = twitter_samples.strings('negative_tweets.json')
 
  
 # Happy Emoticons
@@ -58,7 +55,7 @@ emoticons_sad = set([
 # all emoticons (happy + sad)
 emoticons = emoticons_happy.union(emoticons_sad)
  
-def clean_tweets(tweet):
+def clean_tweets(tweet, stem=True):
     # remove stock market tickers like $GE
     tweet = re.sub(r'\$\w*', '', tweet)
  
@@ -81,7 +78,11 @@ def clean_tweets(tweet):
         if (word not in stopwords_english and # remove stopwords
               word not in emoticons and # remove emoticons
                 word not in string.punctuation): # remove punctuation
-            stem_word = stemmer.stem(word) # stemming word
+            
+            stem = word
+            if stem:
+                stem_word = stemmer.stem(word) # stemming word
+                
             tweets_clean.append(stem_word)
  
     return tweets_clean
@@ -91,8 +92,14 @@ def bag_of_words(tweet):
     words_dictionary = dict([word, True] for word in words)    
     return words_dictionary
 
- 
 
+# shuffle(pos_tweets_set)
+# shuffle(neg_tweets_set)
+ 
+# train_set = pos_tweets_set + neg_tweets_set
+
+# classifier = NaiveBayesClassifier.train(train_set)
+ 
 def get_all_tweets(screen_name, num_tweets):
     #Twitter only allows access to a users most recent 3240 tweets with this method
     
@@ -114,7 +121,7 @@ def get_all_tweets(screen_name, num_tweets):
     oldest = alltweets[-1].id - 1
     count = 0
     #keep grabbing tweets until there are no tweets left to grab
-    while len(new_tweets) > 0 and count <= int(num_tweets):
+    while len(new_tweets) > 0 and count <= num_tweets:
         count += 100
         #all subsiquent requests use the max_id param to prevent duplicates
         new_tweets = api.user_timeline(screen_name = screen_name,count=100,max_id=oldest)
@@ -130,76 +137,100 @@ def get_all_tweets(screen_name, num_tweets):
 
     return outtweets
 
+def get_lemma(word):
+    lemma = wn.morphy(word)
+    if lemma is None:
+        return word
+    else:
+        return lemma
 
-@app.route("/tweet", methods=["GET"])
-def add_user():
-    username = request.args['username']
-    num_tweets = request.args['num_tweets']
-    tweets = get_all_tweets(username, num_tweets)
+train_tweets = []
+for tweet in pos_tweets:
+    tweet = clean_tweets(tweet, False)
+    tweet = [get_lemma(t) for t in tweet]
+    train_tweets.append(tweet)
+ 
+for tweet in neg_tweets:
+    tweet = clean_tweets(tweet, False)
+    tweet = [get_lemma(t) for t in tweet]
+    train_tweets.append(tweet)
 
 
-    data = {}
+train_tweets = train_tweets[:600]
+print('initializing model')
 
-    time_series = []
-    
-    num_pos = 0
-    num_neg = 0
-    num_neu = 0
-    max_pos = 0
-    max_neg = 0
+dictionary = corpora.Dictionary(train_tweets)
+corpus = [dictionary.doc2bow(text) for text in train_tweets]
+ldamodel = gensim.models.ldamodel.LdaModel(corpus, num_topics = 5, id2word=dictionary, passes=15)
+print('model created')
 
-    pos_tweets = []
-    neg_tweets = []
 
-    # sentiment_tweets = []
-    for tweet in tweets:
-        # tweet_words = bag_of_words(tweet[2])
-        prob_result = analyzer.polarity_scores(tweet[2])
+# username = request.args['username']
+# num_tweets = int(request.args['num_tweets'])
+tweets = get_all_tweets('lukas', 100)
 
-        new_data = {}
-        # new_data['id'] = tweet[0]
-        new_data['time'] = tweet[1]
-        new_data['text'] = tweet[2]
+all_tweets = ''
+data = {}
 
-        if prob_result['compound'] >= 0.1:
-            num_pos += 1
-        elif prob_result['compound'] <= -0.1: 
-            num_neg += 1
-        else:
-            num_neu += 1
+time_series = []
 
-        if prob_result['compound'] > max_pos:
-            if len(pos_tweets) == 5:
-                pos_tweets.pop()
-            pos_tweets = [new_data] + pos_tweets
-            max_pos = prob_result['compound']
-        elif prob_result['compound'] < max_neg:
-            if len(neg_tweets) == 5:
-                neg_tweets.pop()
-            neg_tweets = [new_data] + neg_tweets
-            max_neg = prob_result['compound']
+num_pos = 0
+num_neg = 0
+num_neu = 0
+max_pos = 0
+max_neg = 0
 
-        # sentiment_tweets.append(new_data)
+pos_tweet = {}
+neg_tweet = {}
 
-        entry = {}
-        entry['time'] = tweet[1]
-        entry['score'] = prob_result['compound']
-        entry['pos'] = prob_result['pos']
-        entry['neg'] = prob_result['neg']
-        entry['neu'] = prob_result['neu']
-        time_series.append(entry)
+# sentiment_tweets = []
+for tweet in tweets:
+    print('adding tweet')
+    all_tweets += tweet[2]
+    # prob_result = analyzer.polarity_scores(tweet[2])
 
-    # data['tweets'] = sentiment_tweets
-    data['time_series'] = time_series
-    
-    data['num_pos'] = num_pos
-    data['num_neg'] = num_neg
-    data['num_neu'] = num_neu
+    # new_data = {}
+    # # new_data['id'] = tweet[0]
+    # new_data['time'] = tweet[1]
+    # new_data['text'] = tweet[2]
 
-    data['most_positive'] = pos_tweets
-    data['most_negative'] = neg_tweets
+    # if prob_result['compound'] >= 0.1:
+    #     num_pos += 1
+    # elif prob_result['compound'] <= -0.1: 
+    #     num_neg += 1
+    # else:
+    #     num_neu += 1
 
-    return jsonify(data)
+    # if prob_result['compound'] > max_pos:
+    #     pos_tweet = new_data
+    #     max_pos = prob_result['compound']
+    # elif prob_result['compound'] < max_neg:
+    #     neg_tweet = new_data
+    #     max_neg = prob_result['compound']
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    # # sentiment_tweets.append(new_data)
+
+    # entry = {}
+    # entry['time'] = tweet[1]
+    # entry['score'] = prob_result['compound']
+    # entry['pos'] = prob_result['pos']
+    # entry['neg'] = prob_result['neg']
+    # entry['neu'] = prob_result['neu']
+    # time_series.append(entry)
+
+all_tweets = clean_tweets(all_tweets, False)
+all_tweets = [tweet for tweet in all_tweets if len(tweet) > 4]
+all_tweets = [get_lemma(tweet) for tweet in all_tweets]
+all_tweets_bow = dictionary.doc2bow(all_tweets)
+
+
+# data['tweets'] = sentiment_tweets
+# data['time_series'] = time_series
+print(ldamodel.print_topics(num_words=8))
+print(ldamodel.get_document_topics(all_tweets_bow))
+# data['num_pos'] = num_pos
+# data['num_neg'] = num_neg
+# data['num_neu'] = num_neu
+
+# data['most_positive'] = pos_tweet
+# data['most_negative'] = neg_tweet
