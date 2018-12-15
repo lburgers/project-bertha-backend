@@ -190,9 +190,9 @@ def add_user():
     data['num_neg'] = num_neg
     data['num_neu'] = num_neu
 
-    pos_tweets = sorted(pos_tweets, key=lambda k: k[1])[:6]
+    pos_tweets = sorted(pos_tweets, key=lambda k: k[1], reverse=True)[:6]
     pos_tweets, _ = zip(*pos_tweets)
-    neg_tweets = sorted(neg_tweets, key=lambda k: -k[1])[:6]
+    neg_tweets = sorted(neg_tweets, key=lambda k: k[1])[:6]
     neg_tweets, _ = zip(*neg_tweets)
     data['most_positive'] = pos_tweets
     data['most_negative'] = neg_tweets
