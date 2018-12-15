@@ -13,6 +13,7 @@ import os
 import sys
 import re
 import string
+from collections import defaultdict 
 from random import shuffle 
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
