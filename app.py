@@ -157,29 +157,23 @@ def add_user():
         prob_result = analyzer.polarity_scores(tweet[2])
 
         new_data = {}
-        # new_data['id'] = tweet[0]
+
         new_data['time'] = tweet[1]
         new_data['text'] = tweet[2]
 
         if prob_result['compound'] >= 0.1:
+            pos_tweets.append((tweet, prob_result['pos']))
             num_pos += 1
         elif prob_result['compound'] <= -0.1: 
+            neg_tweets.append((tweet, prob_result['neg']))
             num_neg += 1
         else:
             num_neu += 1
 
         if prob_result['compound'] > max_pos:
-            if len(pos_tweets) == 5:
-                pos_tweets.pop()
-            pos_tweets = [new_data] + pos_tweets
             max_pos = prob_result['compound']
         elif prob_result['compound'] < max_neg:
-            if len(neg_tweets) == 5:
-                neg_tweets.pop()
-            neg_tweets = [new_data] + neg_tweets
             max_neg = prob_result['compound']
-
-        # sentiment_tweets.append(new_data)
 
         entry = {}
         entry['time'] = tweet[1]
@@ -196,6 +190,10 @@ def add_user():
     data['num_neg'] = num_neg
     data['num_neu'] = num_neu
 
+    pos_tweets = sorted(pos_tweets, key=lambda k: k[1])[:5]
+    pos_tweets, _ = zip(*pos_tweets)
+    neg_tweets = sorted(neg_tweets, key=lambda k: k[1])[:5]
+    neg_tweets, _ = zip(*neg_tweets)
     data['most_positive'] = pos_tweets
     data['most_negative'] = neg_tweets
 
