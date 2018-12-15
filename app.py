@@ -162,10 +162,10 @@ def add_user():
         new_data['text'] = tweet[2]
 
         if prob_result['compound'] >= 0.1:
-            pos_tweets.append((tweet, prob_result['pos']))
+            pos_tweets.append((tweet, prob_result['compound']))
             num_pos += 1
         elif prob_result['compound'] <= -0.1: 
-            neg_tweets.append((tweet, prob_result['neg']))
+            neg_tweets.append((tweet, prob_result['compound']))
             num_neg += 1
         else:
             num_neu += 1
@@ -192,7 +192,7 @@ def add_user():
 
     pos_tweets = sorted(pos_tweets, key=lambda k: k[1])[:6]
     pos_tweets, _ = zip(*pos_tweets)
-    neg_tweets = sorted(neg_tweets, key=lambda k: k[1])[:6]
+    neg_tweets = sorted(neg_tweets, key=lambda k: -k[1])[:6]
     neg_tweets, _ = zip(*neg_tweets)
     data['most_positive'] = pos_tweets
     data['most_negative'] = neg_tweets
